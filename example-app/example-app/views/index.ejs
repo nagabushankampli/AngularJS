@@ -1,0 +1,139 @@
+<html ng-app="app">
+<head>
+  <title>ngExample</title>
+</head>
+<body>
+
+<ng-view></ng-view>
+
+<!-- Libraries -->
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-route.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.25/angular-resource.min.js"></script>
+
+
+
+
+
+<!-- Template -->
+<script type="text/ng-template" id="/examples.html">
+  Search: <input type="text" ng-model="search.name">
+  <ul>
+    <li ng-repeat="example in examples | filter: search">
+      <input type="checkbox" ng-model="example.completed" ng-change="update($index)">
+      <a ng-show="!editing[$index]" href="#/{{example._id}}">{{example.name}}</a>
+      <button ng-show="!editing[$index]" ng-click="edit($index)">edit</button>
+      <input ng-show="editing[$index]" type="text" ng-model="example.name">
+      <button ng-show="editing[$index]" ng-click="update($index)">Update</button>
+      <button ng-show="editing[$index]" ng-click="cancel($index)">Cancel</button>
+      <button ng-show="!editing[$index]" ng-click="remove($index)">remove</button>
+    </li>
+  </ul>
+  New task <input type="text" ng-model="newExample"><button ng-click="save()">Create</button>
+</script>
+
+<script type="text/ng-template" id="/exampleDetails.html">
+  <h1>{{ example.name }}</h1>
+  completed: <input type="checkbox" ng-model="example.completed"><br>
+  note: <textarea ng-model="example.note"></textarea><br><br>
+  <button ng-click="update()">Update</button>
+  <a href="/">Cancel</a>
+  	
+  <button ng-click="remove()">Remove</button>
+  
+</script>
+
+<script>
+  angular.module('app', ['ngRoute','ngResource'])
+  
+
+
+    //---------------
+    // Services
+    //---------------
+    
+        .factory('Examples', ['$resource', function($resource){
+          return $resource('/examples/:id', null, {
+            'update': { method:'PUT' }
+          });
+        }])
+
+
+    //---------------
+    // Controllers
+    //---------------
+    
+ .controller('ExampleController', ['$scope', 'Examples', function ($scope, Examples) {
+          $scope.editing = [];
+          $scope.examples = Examples.query();
+          $scope.save = function(){
+            if(!$scope.newExample || $scope.newExample.length < 1) return;
+            var example = new Examples({ name: $scope.newExample, completed: false });
+            example.$save(function(){
+              $scope.examples.push(example);
+              $scope.newExample = ''; // clear textbox
+            });
+          }
+          $scope.update = function(index){
+            var example = $scope.examples[index];
+            Examples.update({id: example._id}, example);
+            $scope.editing[index] = false;
+          }
+          $scope.edit = function(index){
+            $scope.editing[index] = angular.copy($scope.examples[index]);
+          }
+          $scope.cancel = function(index){
+            $scope.examples[index] = angular.copy($scope.editing[index]);
+            $scope.editing[index] = false;
+          }
+          $scope.remove = function(index){
+            var example = $scope.examples[index];
+            Examples.remove({id: example._id}, function(){
+              $scope.examples.splice(index, 1);
+            });
+          }
+        }])
+        
+        .controller('ExampleDetailCtrl', ['$scope', '$routeParams', 'Examples', '$location', function ($scope, $routeParams, Examples,$location) {
+          $scope.example = Examples.get({id: $routeParams.id });
+          
+          $scope.update = function(){
+          Examples.update({id: $scope.example._id}, $scope.example, function(){
+          $location.url('/');
+          });
+          }
+          
+          $scope.remove = function(){
+          Examples.remove({id: $scope.example._id}, function(){
+          $location.url('/');
+          });
+          }
+          
+        }])
+
+
+    //---------------
+    // Routes
+    //---------------
+
+    .config(['$routeProvider', function ($routeProvider) {
+      $routeProvider
+        .when('/', {
+          templateUrl: '/examples.html',
+          controller: 'ExampleController'
+        })
+
+        .when('/:id', {
+          templateUrl: '/exampleDetails.html',
+          controller: 'ExampleDetailCtrl'
+       });
+    }]);
+    
+  
+  
+
+    
+</script>
+
+</body>
+</html>
